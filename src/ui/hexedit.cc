@@ -39,7 +39,6 @@ namespace ui {
 using util::settings::shortcuts::ShortcutsModel;
 
 static const qint64 verticalAreaSpaceWidth_ = 15;
-static const qint64 horizontalAreaSpaceWidth_ = 5;
 static const qint64 startMargin_ = 10;
 static const qint64 endMargin_ = 10;
 static const qint64 cursor_blink_time_ = 500;
@@ -64,10 +63,11 @@ void HexEdit::recalculateValues() {
   }
   addressWidth_ = addressBytes_ * 2 * charWidth_ + verticalAreaSpaceWidth_;
 
-  // plus one for only addr
-  rowsCount_ = (dataBytesCount_ + bytesPerRow_ - 1) / bytesPerRow_ + 1;
-  rowsOnScreen_ =
-      (viewport()->height() - horizontalAreaSpaceWidth_ * 2) / charHeight_;
+  auto data_rows = (dataBytesCount_ + bytesPerRow_ - 1) / bytesPerRow_;
+  // Plus one only for address
+  rowsCount_ = data_rows + 1;
+  // Plus one for partially visible row
+  rowsOnScreen_ = viewport()->height() / charHeight_ + 1;
 
   // Spacing needs to be odd for proper border alignment.
   spaceAfterByte_ = ((charWidth_ / 3) | 1);
@@ -79,7 +79,7 @@ void HexEdit::recalculateValues() {
   lineWidth_ =
       startMargin_ + addressWidth_ + hexAreaWidth_ + asciiWidth_ + endMargin_;
 
-  verticalScrollBar()->setRange(0, rowsCount_ - rowsOnScreen_);
+  verticalScrollBar()->setRange(0, data_rows - 1);
   verticalScrollBar()->setPageStep(rowsOnScreen_);
   startRow_ = verticalScrollBar()->value();
 
@@ -767,8 +767,7 @@ void HexEdit::paintEvent(QPaintEvent* event) {
   painter.setPen(QPen(viewport()->palette().color(QPalette::Shadow)));
   auto separator_offset =
       startMargin_ + addressWidth_ - verticalAreaSpaceWidth_ / 2 - startPosX_;
-  auto separator_length =
-      rowsOnScreen_ * charHeight_ + horizontalAreaSpaceWidth_;
+  auto separator_length = viewport()->height();
   auto address_bar_area_rect =
       QRect(-startPosX_, 0, separator_offset + startPosX_, separator_length);
   painter.fillRect(address_bar_area_rect,
@@ -778,9 +777,7 @@ void HexEdit::paintEvent(QPaintEvent* event) {
                      verticalAreaSpaceWidth_ / 2 - startPosX_;
   painter.drawLine(separator_offset, 0, separator_offset, separator_length);
   separator_offset = lineWidth_ - endMargin_ / 2 - startPosX_;
-  painter.drawLine(separator_offset, 0, separator_offset, viewport()->height());
-  painter.drawLine(-startPosX_, separator_length,
-                   lineWidth_ - endMargin_ / 2 - startPosX_, separator_length);
+  painter.drawLine(separator_offset, 0, separator_offset, separator_length);
   painter.setPen(old_pen);
 
   auto end_row = std::min(startRow_ + rowsOnScreen_, rowsCount_);
